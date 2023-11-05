@@ -29,7 +29,7 @@ export class AppController implements OnModuleInit {
     try {
       const isAlive = await this.appService.lifeCheck()
       if (isAlive) {
-        const heatingCron = new CronJob(CronExpression.EVERY_5_SECONDS, () => {
+        const heatingCron = new CronJob(CronExpression.EVERY_SECOND, () => {
           void this.progressHeating()
         })
         this.heatingCron = heatingCron
@@ -44,12 +44,12 @@ export class AppController implements OnModuleInit {
         })
         this.IdleCron = idleCron
 
-        const switchingFilamentCron = new CronJob(CronExpression.EVERY_5_SECONDS, () => {
+        const switchingFilamentCron = new CronJob(CronExpression.EVERY_SECOND, () => {
           void this.progressSwitchingFilament()
         })
         this.switchingFilamentCron = switchingFilamentCron
 
-        const printingFinishedCron = new CronJob(CronExpression.EVERY_5_SECONDS, () => {
+        const printingFinishedCron = new CronJob(CronExpression.EVERY_SECOND, () => {
           void this.progressPrintingFinished()
         })
         this.printingFinishedCron = printingFinishedCron
@@ -97,10 +97,10 @@ export class AppController implements OnModuleInit {
 
   //! Fn ENUM = PrintingPercentage
   async progressPrinting() {
-    this.logger.verbose('CronJob - Printing Progress')
     const printerState: IPrinterState = await this.appService.getPrinterState()
     const printerStatus = this.statusAndCronHAndler(printerState)
     const percentage = printerState.job.progress
+    this.logger.verbose(`CronJob - Printing Progress, ${percentage}%`)
     if (printerStatus !== IPrinterStateEnum.PrintingPercentage) return
     await this.appService.updateWLED(UPDATE_WLED_TYPE.PRINTING, percentage)
     const remainingPrintTime = printerState.job.time_remaining
@@ -110,7 +110,7 @@ export class AppController implements OnModuleInit {
     } else if (remainingPrintTime + elapsedTime < (100 / LEDS) * 60) {
       //We Divide by LEDS to get the time for each LED
       this.updateCronTime(this.printingCron, CronCustomExpressions.EVERY_10_SECONDS)
-    } else this.updateCronTime(this.printingCron, CronCustomExpressions.EVERY_1_MINUTE)
+    } else this.updateCronTime(this.printingCron, CronCustomExpressions.EVERY_5_SECONDS)
   }
 
   //! Initiate tracking responsible of getting the first data from Prusa, update wled and start crons

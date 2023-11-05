@@ -1,6 +1,6 @@
-import { LEDS } from './app.service'
 import { CronJob } from 'cron'
 
+const LEDS = 91
 export const CronCustomExpressions = {
   EVERY_5_SECONDS: '0,5,10,15,20,25,30,35,40,45,50,55 * * * * *',
   EVERY_10_SECONDS: '0,10,20,30,40,50 * * * * *',
@@ -115,6 +115,8 @@ export const ERROR_JSON = {
         [200, 0, 0, 0],
       ],
       fx: 158,
+      start: 0,
+      stop: LEDS,
       sx: 0,
       ix: 255,
       c1: 128,
@@ -138,6 +140,8 @@ export const FINISHED_JSON = {
       fx: 64,
       sx: 156,
       ix: 119,
+      start: 0,
+      stop: LEDS,
       c1: 128,
       c2: 128,
       c3: 16,
