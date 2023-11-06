@@ -13,6 +13,7 @@ const PrusaReqConfig = {
     'X-Api-Key': PrusaAPIKey,
   },
 }
+
 @Injectable()
 export class AppService {
   async lifeCheck() {

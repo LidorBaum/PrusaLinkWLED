@@ -62,55 +62,74 @@ export class AppController implements OnModuleInit {
   }
 
   async progressPrintingFinished() {
-    this.logger.verbose('CronJob - Printing Finished')
-    const printerState: IPrinterState = await this.appService.getPrinterState()
-    const printerStatus = this.statusAndCronHAndler(printerState)
-    if (printerStatus !== IPrinterStateEnum.PrintingFinished) return
-    if (this.printTime) this.printTime = null
-    await this.appService.updateWLED(UPDATE_WLED_TYPE.FINISHED)
+    try {
+      this.logger.verbose('CronJob - Printing Finished')
+      const printerState: IPrinterState = await this.appService.getPrinterState()
+      const printerStatus = this.statusAndCronHAndler(printerState)
+      if (printerStatus !== IPrinterStateEnum.PrintingFinished) return
+      if (this.printTime) this.printTime = null
+      await this.appService.updateWLED(UPDATE_WLED_TYPE.FINISHED)
+    } catch (e) {
+      this.logger.error(`Error in progressPrintingFinished: ${e?.response?.message || e?.message}`)
+    }
   }
 
   async progressSwitchingFilament() {
-    this.logger.verbose('CronJob - Switching Filament')
-    const printerState: IPrinterState = await this.appService.getPrinterState()
-    const printerStatus = this.statusAndCronHAndler(printerState)
-    if (printerStatus !== IPrinterStateEnum.SwitchingFilament) return
-    await this.appService.updateWLED(UPDATE_WLED_TYPE.SWITCHING_FILAMENT)
+    try {
+      this.logger.verbose('CronJob - Switching Filament')
+      const printerState: IPrinterState = await this.appService.getPrinterState()
+      const printerStatus = this.statusAndCronHAndler(printerState)
+      if (printerStatus !== IPrinterStateEnum.SwitchingFilament) return
+      await this.appService.updateWLED(UPDATE_WLED_TYPE.SWITCHING_FILAMENT)
+    } catch (e) {
+      this.logger.error(`Error in progressSwitchingFilament: ${e?.response?.message || e?.message}`)
+    }
   }
 
   async progressIdle() {
-    this.logger.verbose('CronJob - Idle')
-    const printerState: IPrinterState = await this.appService.getPrinterState()
-    const printerStatus = this.statusAndCronHAndler(printerState)
-    if (printerStatus !== IPrinterStateEnum.Idle) return
-    await this.appService.updateWLED(UPDATE_WLED_TYPE.IDLE)
+    try {
+      this.logger.verbose('CronJob - Idle')
+      const printerState: IPrinterState = await this.appService.getPrinterState()
+      const printerStatus = this.statusAndCronHAndler(printerState)
+      if (printerStatus !== IPrinterStateEnum.Idle) return
+      await this.appService.updateWLED(UPDATE_WLED_TYPE.IDLE)
+    } catch (e) {
+      this.logger.error(`Error in progressIdle: ${e?.response?.message || e?.message}`)
+    }
   }
 
   async progressHeating() {
     this.logger.verbose('CronJob - Heating')
-    const printerState: IPrinterState = await this.appService.getPrinterState()
-    const printerStatus = this.statusAndCronHAndler(printerState)
-    if (printerStatus !== IPrinterStateEnum.PrintingHeating) return
-    const percentage = Math.round((printerState.printer.temp_nozzle * 100) / printerState.printer.target_nozzle)
-    await this.appService.updateWLED(UPDATE_WLED_TYPE.HEATING, percentage)
+    try {
+      const printerState: IPrinterState = await this.appService.getPrinterState()
+      const printerStatus = this.statusAndCronHAndler(printerState)
+      if (printerStatus !== IPrinterStateEnum.PrintingHeating) return
+      const percentage = Math.round((printerState.printer.temp_nozzle * 100) / printerState.printer.target_nozzle)
+      await this.appService.updateWLED(UPDATE_WLED_TYPE.HEATING, percentage)
+    } catch (e) {
+      this.logger.error(`Error in progressHeating: ${e?.response?.message || e?.message}`)
+    }
   }
 
-  //! Fn ENUM = PrintingPercentage
   async progressPrinting() {
-    const printerState: IPrinterState = await this.appService.getPrinterState()
-    const printerStatus = this.statusAndCronHAndler(printerState)
-    const percentage = printerState.job.progress
-    this.logger.verbose(`CronJob - Printing Progress, ${percentage}%`)
-    if (printerStatus !== IPrinterStateEnum.PrintingPercentage) return
-    await this.appService.updateWLED(UPDATE_WLED_TYPE.PRINTING, percentage)
-    const remainingPrintTime = printerState.job.time_remaining
-    const elapsedTime = printerState.job.time_printing
-    if (remainingPrintTime < 10 * 60) {
-      this.updateCronTime(this.printingCron, CronCustomExpressions.EVERY_5_SECONDS)
-    } else if (remainingPrintTime + elapsedTime < (100 / LEDS) * 60) {
-      //We Divide by LEDS to get the time for each LED
-      this.updateCronTime(this.printingCron, CronCustomExpressions.EVERY_10_SECONDS)
-    } else this.updateCronTime(this.printingCron, CronCustomExpressions.EVERY_5_SECONDS)
+    try {
+      const printerState: IPrinterState = await this.appService.getPrinterState()
+      const printerStatus = this.statusAndCronHAndler(printerState)
+      const percentage = printerState.job.progress
+      this.logger.verbose(`CronJob - Printing Progress, ${percentage}%`)
+      if (printerStatus !== IPrinterStateEnum.PrintingPercentage) return
+      await this.appService.updateWLED(UPDATE_WLED_TYPE.PRINTING, percentage)
+      const remainingPrintTime = printerState.job.time_remaining
+      const elapsedTime = printerState.job.time_printing
+      if (remainingPrintTime < 10 * 60) {
+        this.updateCronTime(this.printingCron, CronCustomExpressions.EVERY_5_SECONDS)
+      } else if (remainingPrintTime + elapsedTime < (100 / LEDS) * 60) {
+        //We Divide by LEDS to get the time for each LED
+        this.updateCronTime(this.printingCron, CronCustomExpressions.EVERY_10_SECONDS)
+      } else this.updateCronTime(this.printingCron, CronCustomExpressions.EVERY_5_SECONDS)
+    } catch (e) {
+      this.logger.error(`Error in progressPrinting: ${e?.response?.message || e?.message}`)
+    }
   }
 
   //! Initiate tracking responsible of getting the first data from Prusa, update wled and start crons
