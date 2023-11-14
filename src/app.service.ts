@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common'
 import axios from 'axios'
-import { ERROR_JSON, FINISHED_JSON, IPrinterState, SWITCHING_FILAMENT_JSON, UPDATE_WLED_TYPE } from './utils'
+import {
+  ERROR_JSON,
+  FINISHED_JSON,
+  IDLE_HOT_JSON,
+  IDLE_JSON,
+  IPrinterState,
+  SWITCHING_FILAMENT_JSON,
+  UPDATE_WLED_TYPE,
+} from './utils'
 
 export const LEDS = 91
 const ROWS = 1
@@ -12,6 +20,8 @@ const PrusaReqConfig = {
   headers: {
     'X-Api-Key': PrusaAPIKey,
   },
+  timeout: 2000,
+  timeoutErrorMessage: 'Timeout',
 }
 
 @Injectable()
@@ -21,12 +31,14 @@ export class AppService {
     if (res.status !== 200) {
       throw new Error('WLED is not available')
     }
+
     const prusaRes = await axios.get(PrusaLink, {
       headers: {
         'X-Api-Key': PrusaAPIKey,
       },
     })
     if (prusaRes.status !== 200) {
+      await this.updateWLED(UPDATE_WLED_TYPE.ERROR)
       throw new Error('Prusa is not available')
     }
     return true
@@ -36,15 +48,15 @@ export class AppService {
     // return {
     //   job: {
     //     id: 9,
-    //     progress: 58,
+    //     progress: 100,
     //     time_remaining: 59100,
     //     time_printing: 14,
     //   },
     //   printer: {
-    //     state: PrusaLinkPrinterStates.IDLE,
+    //     state: PrusaLinkPrinterStates.PRINTING,
     //     temp_bed: 60.4,
     //     target_bed: 60.0,
-    //     temp_nozzle: 170.0,
+    //     temp_nozzle: 215.0,
     //     target_nozzle: 215.0,
     //     axis_z: 371.2,
     //     flow: 100,
@@ -53,8 +65,13 @@ export class AppService {
     //     fan_print: 0,
     //   },
     // }
-    const initialState = await axios.get(PrusaLink, PrusaReqConfig)
-    return initialState.data
+    try {
+      const initialState = await axios.get(PrusaLink, PrusaReqConfig)
+      return initialState.data
+    } catch (e) {
+      console.log(e)
+      await this.updateWLED(UPDATE_WLED_TYPE.ERROR)
+    }
   }
 
   async updateWLED(updateType: UPDATE_WLED_TYPE, percentage?: number) {
@@ -69,7 +86,11 @@ export class AppService {
         break
       }
       case UPDATE_WLED_TYPE.IDLE: {
-        json = this.prepareMatrix('colorOrangePrusa', 'colorOrangePrusa', 100)
+        json = IDLE_JSON
+        break
+      }
+      case UPDATE_WLED_TYPE.IDLE_HOT: {
+        json = IDLE_HOT_JSON
         break
       }
       case UPDATE_WLED_TYPE.SWITCHING_FILAMENT: {
@@ -131,6 +152,12 @@ export class AppService {
       }
     }
     const json = this.getLEDJson(segmentsArray)
+    json.seg = json.seg
+      .map((x) => {
+        if (x.start <= 0 && x.stop <= 0) return null
+        return x
+      })
+      .filter((x) => !!x)
     return json
   }
 

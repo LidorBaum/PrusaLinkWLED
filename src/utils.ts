@@ -5,6 +5,7 @@ export const CronCustomExpressions = {
   EVERY_5_SECONDS: '0,5,10,15,20,25,30,35,40,45,50,55 * * * * *',
   EVERY_10_SECONDS: '0,10,20,30,40,50 * * * * *',
   EVERY_1_MINUTE: '0 * * * * *',
+  EVERY_1_SECOND: '* * * * * *',
 }
 
 export interface ICronsMap {
@@ -25,6 +26,7 @@ export enum UPDATE_WLED_TYPE {
   HEATING = 'HEATING',
   PRINTING = 'PRINTING',
   IDLE = 'IDLE',
+  IDLE_HOT = 'IDLE_HOT',
   ERROR = 'ERROR',
   FINISHED = 'FINISHED',
   SWITCHING_FILAMENT = 'SWITCHING_FILAMENT',
@@ -84,6 +86,47 @@ export const emptySegments = [
   { stop: 0 },
 ]
 
+export const IDLE_JSON = {
+  on: true,
+  bri: 255,
+  seg: [
+    {
+      start: 0,
+      stop: LEDS,
+      col: [
+        [250, 123, 33],
+        [200, 100, 0],
+        [0, 0, 0],
+      ],
+      fx: 46,
+      ix: LEDS / 3,
+      sx: 80,
+      rev: true,
+    },
+    ...emptySegments,
+  ],
+}
+
+export const IDLE_HOT_JSON = {
+  on: true,
+  bri: 255,
+  seg: [
+    {
+      start: 0,
+      stop: LEDS,
+      col: [
+        [250, 123, 33],
+        [255, 0, 0],
+        [255, 0, 0],
+      ],
+      fx: 46,
+      ix: 200,
+      sx: 150,
+      rev: true,
+    },
+    ...emptySegments,
+  ],
+}
 export const SWITCHING_FILAMENT_JSON = {
   on: true,
   bri: 255,

@@ -27,37 +27,37 @@ export class AppController implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      const isAlive = await this.appService.lifeCheck()
-      if (isAlive) {
-        const heatingCron = new CronJob(CronExpression.EVERY_SECOND, () => {
-          void this.progressHeating()
-        })
-        this.heatingCron = heatingCron
+      const heatingCron = new CronJob(CronExpression.EVERY_SECOND, () => {
+        void this.progressHeating()
+      })
+      this.heatingCron = heatingCron
 
-        const printingCron = new CronJob(CronExpression.EVERY_10_SECONDS, () => {
-          void this.progressPrinting()
-        })
-        this.printingCron = printingCron
+      const printingCron = new CronJob(CronExpression.EVERY_10_SECONDS, () => {
+        void this.progressPrinting()
+      })
+      this.printingCron = printingCron
 
-        const idleCron = new CronJob(CronExpression.EVERY_5_SECONDS, () => {
-          void this.progressIdle()
-        })
-        this.IdleCron = idleCron
+      const idleCron = new CronJob(CronExpression.EVERY_5_SECONDS, () => {
+        void this.progressIdle()
+      })
+      this.IdleCron = idleCron
 
-        const switchingFilamentCron = new CronJob(CronExpression.EVERY_SECOND, () => {
-          void this.progressSwitchingFilament()
-        })
-        this.switchingFilamentCron = switchingFilamentCron
+      const switchingFilamentCron = new CronJob(CronExpression.EVERY_SECOND, () => {
+        void this.progressSwitchingFilament()
+      })
+      this.switchingFilamentCron = switchingFilamentCron
 
-        const printingFinishedCron = new CronJob(CronExpression.EVERY_SECOND, () => {
-          void this.progressPrintingFinished()
-        })
-        this.printingFinishedCron = printingFinishedCron
+      const printingFinishedCron = new CronJob(CronExpression.EVERY_SECOND, () => {
+        void this.progressPrintingFinished()
+      })
+      this.printingFinishedCron = printingFinishedCron
 
-        void this.initiateTracking()
-      }
+      await this.appService.lifeCheck()
+      void this.initiateTracking()
     } catch (e) {
       this.logger.error(`Prusa or WLED is not ALIVE:  ${e?.response?.message || e?.message}`)
+      await this.appService.updateWLED(UPDATE_WLED_TYPE.ERROR)
+      this.IdleCron.start()
     }
   }
 
@@ -92,7 +92,12 @@ export class AppController implements OnModuleInit {
       const printerState: IPrinterState = await this.appService.getPrinterState()
       const printerStatus = this.statusAndCronHAndler(printerState)
       if (printerStatus !== IPrinterStateEnum.Idle) return
-      await this.appService.updateWLED(UPDATE_WLED_TYPE.IDLE)
+      const isHeated =
+        printerState.printer.target_nozzle > 100 &&
+        printerState.printer.target_nozzle - printerState.printer.temp_nozzle < 6
+      isHeated
+        ? await this.appService.updateWLED(UPDATE_WLED_TYPE.IDLE_HOT)
+        : await this.appService.updateWLED(UPDATE_WLED_TYPE.IDLE)
     } catch (e) {
       this.logger.error(`Error in progressIdle: ${e?.response?.message || e?.message}`)
     }
@@ -115,13 +120,15 @@ export class AppController implements OnModuleInit {
     try {
       const printerState: IPrinterState = await this.appService.getPrinterState()
       const printerStatus = this.statusAndCronHAndler(printerState)
-      const percentage = printerState.job.progress
+      const percentage = printerState?.job?.progress || 0
       this.logger.verbose(`CronJob - Printing Progress, ${percentage}%`)
       if (printerStatus !== IPrinterStateEnum.PrintingPercentage) return
       await this.appService.updateWLED(UPDATE_WLED_TYPE.PRINTING, percentage)
       const remainingPrintTime = printerState.job.time_remaining
       const elapsedTime = printerState.job.time_printing
-      if (remainingPrintTime < 10 * 60) {
+      if (remainingPrintTime < 60) {
+        this.updateCronTime(this.printingCron, CronCustomExpressions.EVERY_1_SECOND)
+      } else if (remainingPrintTime < 10 * 60) {
         this.updateCronTime(this.printingCron, CronCustomExpressions.EVERY_5_SECONDS)
       } else if (remainingPrintTime + elapsedTime < (100 / LEDS) * 60) {
         //We Divide by LEDS to get the time for each LED
@@ -153,6 +160,13 @@ export class AppController implements OnModuleInit {
         stopCrons: [this.heatingCron, this.printingFinishedCron, this.IdleCron, this.switchingFilamentCron],
       },
       [PrusaLinkPrinterStates.IDLE]: {
+        condition: {
+          check:
+            (target_bed !== 0 && target_bed - temp_bed > 4) || (target_nozzle !== 0 && target_nozzle - temp_nozzle > 6),
+          startCron: this.heatingCron,
+          stopCrons: [this.printingCron, this.printingFinishedCron, this.IdleCron, this.switchingFilamentCron],
+          stateToReturn: IPrinterStateEnum.PrintingHeating,
+        },
         startCron: this.IdleCron,
         stateToReturn: IPrinterStateEnum.Idle,
         stopCrons: [this.heatingCron, this.printingFinishedCron, this.printingCron, this.switchingFilamentCron],
